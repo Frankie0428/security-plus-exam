@@ -8,7 +8,7 @@ const STORAGE_KEY = "securityPlusExamProgress_v2";
 // ========================================
 // EXAM STATE
 // ========================================
-let examQuestions = [];     // the 90 questions for THIS attempt
+let examQuestions = [];
 let currentQuestion = 0;
 let userAnswers = [];
 let flaggedQuestions = new Set();
@@ -66,7 +66,6 @@ function buildExamForm() {
 // INIT
 // ========================================
 function initApp() {
-  // basic bank check
   if (!Array.isArray(questionBank) || questionBank.length === 0) {
     alert("questions.js did not load (questionBank missing).");
     return;
@@ -107,7 +106,7 @@ function saveProgress(timeRemainingSeconds) {
   if (examSubmitted || !examStarted) return;
 
   const payload = {
-    examQuestions, // ✅ saves the exact 90-question form
+    examQuestions,
     currentQuestion,
     userAnswers,
     flaggedQuestions: Array.from(flaggedQuestions),
@@ -125,12 +124,8 @@ function loadSavedProgress() {
   try {
     const progress = JSON.parse(saved);
 
-    if (!Array.isArray(progress.examQuestions) || progress.examQuestions.length !== EXAM_QUESTION_COUNT) {
-      return null;
-    }
-    if (!Array.isArray(progress.userAnswers) || progress.userAnswers.length !== EXAM_QUESTION_COUNT) {
-      return null;
-    }
+    if (!Array.isArray(progress.examQuestions) || progress.examQuestions.length !== EXAM_QUESTION_COUNT) return null;
+    if (!Array.isArray(progress.userAnswers) || progress.userAnswers.length !== EXAM_QUESTION_COUNT) return null;
 
     examQuestions = progress.examQuestions;
     currentQuestion = progress.currentQuestion ?? 0;
@@ -440,10 +435,7 @@ function calculateResults() {
 
 function showResults(results) {
   byId("questionContainer").classList.add("hidden");
-
-  const nav = document.querySelector(".nav");
-  if (nav) nav.classList.add("hidden");
-
+  document.querySelector(".navigation").classList.add("hidden");
   byId("reviewScreen").classList.add("hidden");
   byId("results").classList.remove("hidden");
 
@@ -481,9 +473,7 @@ function showResults(results) {
 function reviewAnswers() {
   byId("results").classList.add("hidden");
   byId("questionContainer").classList.remove("hidden");
-
-  const nav = document.querySelector(".nav");
-  if (nav) nav.classList.remove("hidden");
+  document.querySelector(".navigation").classList.remove("hidden");
 
   currentQuestion = 0;
   loadQuestion();
@@ -507,27 +497,6 @@ window.addEventListener("beforeunload", (e) => {
 });
 
 // ========================================
-// KEYBOARD SHORTCUTS
-// ========================================
-document.addEventListener("keydown", (e) => {
-  if (!examStarted || examSubmitted) return;
-  if (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA") return;
-
-  if (e.key === "ArrowLeft") previousQuestion();
-  if (e.key === "ArrowRight") nextQuestion();
-
-  if (["1","2","3","4"].includes(e.key)) {
-    const idx = parseInt(e.key, 10) - 1;
-    const q = examQuestions[currentQuestion];
-    if (idx >= 0 && idx < q.options.length) selectOption(idx);
-  }
-
-  if (e.key === "f" || e.key === "F") toggleFlag();
-  if (e.key === "r" || e.key === "R") showReviewScreen();
-});
-
-// ========================================
 // BOOT
 // ========================================
 window.addEventListener("load", initApp);
-
