@@ -22,7 +22,7 @@
       <div class="card">
         <h1>Security+ SY0-701 Practice Exam</h1>
         <p class="muted">
-          This will generate a <strong>random 90-question exam</strong> from your question bank.
+          This generates a <strong>random exam</strong> from your question bank.
           Timer is <strong>90 minutes</strong>.
         </p>
 
@@ -108,7 +108,53 @@
     <div class="navigation card">
       <button id="prevBtn" class="btn secondary" onclick="previousQuestion()">← Previous</button>
       <button id="nextBtn" class="btn" onclick="nextQuestion()">Next →</button>
-      <but
+      <button id="submitBtn" class="btn danger hidden" onclick="confirmSubmit()">Submit Exam</button>
+    </div>
 
-<script src="questions.js"></script>
-<script src="app.js"></script>
+    <!-- REVIEW SCREEN -->
+    <div id="reviewScreen" class="card hidden" style="margin-top:14px;">
+      <div class="review-header">
+        <h3>Review</h3>
+        <button class="btn secondary" onclick="closeReviewScreen()">Close</button>
+      </div>
+
+      <div class="muted" style="margin-bottom:10px;">
+        Legend:
+        <span class="legend answered">Answered</span>
+        <span class="legend flagged">Flagged</span>
+        <span class="legend current">Current</span>
+      </div>
+
+      <div id="reviewGrid" class="review-grid"></div>
+    </div>
+
+    <!-- RESULTS -->
+    <div id="results" class="card hidden" style="margin-top:14px;">
+      <h2>Results</h2>
+
+      <div class="score-box center">
+        <div id="scorePercentage" class="score-big">0%</div>
+        <div class="muted">
+          Correct: <strong id="correctAnswers">0</strong> /
+          <strong id="totalQuestions">0</strong>
+        </div>
+      </div>
+
+      <div id="passStatus" class="pass-status">—</div>
+
+      <h3>Domain breakdown</h3>
+      <div id="domainBreakdown" class="domain-breakdown"></div>
+
+      <div class="btn-row" style="margin-top:14px;">
+        <button class="btn secondary" onclick="reviewAnswers()">Review Answers</button>
+        <button class="btn danger" onclick="restartExam()">Restart</button>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- IMPORTANT: scripts at the very bottom -->
+  <script src="questions.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
