@@ -8,74 +8,101 @@
 </head>
 <body>
 
-  <div id="loadingScreen">Loading questions…</div>
+  <!-- LOADING -->
+  <div id="loadingScreen" class="screen">
+    <h1>Security+ Practice Exam</h1>
+    <p>Loading questions…</p>
+  </div>
 
-  <div id="startScreen" class="hidden">
+  <!-- START -->
+  <div id="startScreen" class="screen hidden">
     <h1>Security+ Practice Exam</h1>
 
-    <div id="savedProgress" class="hidden">
-      <p>Saved attempt found: <span id="savedTime"></span></p>
-      <button onclick="continueExam()">Continue</button>
+    <div id="savedProgress" class="card hidden">
+      <p><strong>Saved attempt found.</strong></p>
+      <p>Last saved: <span id="savedTime"></span></p>
+      <div class="row">
+        <button class="btn" onclick="continueExam()">Continue</button>
+        <button class="btn btn-secondary" onclick="startFreshExam()">Start Fresh</button>
+      </div>
     </div>
 
-    <button onclick="startFreshExam()">Start New Exam</button>
+    <div class="row">
+      <button class="btn" onclick="startFreshExam()">Start New Exam</button>
+    </div>
   </div>
 
-  <div id="examContainer" class="hidden">
+  <!-- EXAM -->
+  <div id="examContainer" class="screen hidden">
 
-    <div id="questionContainer">
-      <div>
-        Time: <span id="timer">90:00</span> |
-        Question <span id="currentQ">1</span>/<span id="totalQ">0</span>
+    <header class="topbar">
+      <div>Time: <span id="timer">90:00</span></div>
+      <div>Question: <span id="currentQ">1</span>/<span id="totalQ">0</span></div>
+      <div>Answered: <span id="answeredCount">0</span></div>
+      <div>Flagged: <span id="flaggedCount">0</span></div>
+    </header>
+
+    <div class="progress-wrap">
+      <div class="progress-label">Progress: <span id="progressPercent">0%</span></div>
+      <div class="progress-outer">
+        <div id="progressBar" class="progress-inner"></div>
       </div>
+    </div>
 
-      <div id="questionDomain"></div>
+    <main id="questionContainer" class="card">
+      <div class="domain" id="questionDomain"></div>
       <h2>Question <span id="qNum">1</span></h2>
-      <div id="questionText"></div>
+      <p id="questionText" class="question-text"></p>
 
-      <div id="optionsContainer"></div>
+      <div id="optionsContainer" class="options"></div>
 
-      <button id="flagBtn" onclick="toggleFlag()">🚩 Flag</button>
-      <div id="explanation" class="hidden"></div>
-    </div>
+      <div class="row space-between">
+        <button id="flagBtn" class="btn btn-secondary" onclick="toggleFlag()">🚩 Flag</button>
+        <button class="btn btn-secondary" onclick="showReviewScreen()">Review</button>
+      </div>
 
-    <div id="reviewScreen" class="hidden">
-      <h2>Review</h2>
-      <div id="reviewGrid"></div>
-      <button onclick="closeReviewScreen()">Close</button>
-    </div>
+      <div id="explanation" class="explanation hidden"></div>
+    </main>
 
-    <div class="navigation">
-      <button id="prevBtn" onclick="previousQuestion()">Prev</button>
-      <button onclick="showReviewScreen()">Review</button>
-      <button id="nextBtn" onclick="nextQuestion()">Next</button>
-      <button id="submitBtn" class="hidden" onclick="confirmSubmit()">Submit</button>
-    </div>
+    <footer class="nav">
+      <button id="prevBtn" class="btn btn-secondary" onclick="previousQuestion()">Prev</button>
+      <button id="nextBtn" class="btn" onclick="nextQuestion()">Next</button>
+      <button id="submitBtn" class="btn hidden" onclick="confirmSubmit()">Submit</button>
+    </footer>
 
-    <div>
-      Answered: <span id="answeredCount">0</span> |
-      Flagged: <span id="flaggedCount">0</span> |
-      Progress: <span id="progressPercent">0%</span>
-      <div style="width:100%;background:#ddd;height:10px;">
-        <div id="progressBar" style="height:10px;width:0%;"></div>
+    <!-- REVIEW SCREEN -->
+    <div id="reviewScreen" class="screen hidden">
+      <div class="card">
+        <h2>Review Questions</h2>
+        <div id="reviewGrid" class="review-grid"></div>
+        <div class="row">
+          <button class="btn btn-secondary" onclick="closeReviewScreen()">Close</button>
+        </div>
       </div>
     </div>
 
-    <div id="results" class="hidden">
-      <h2>Results</h2>
-      <div id="passStatus"></div>
-      <div>Score: <span id="scorePercentage"></span></div>
-      <div>Correct: <span id="correctAnswers"></span> / <span id="totalQuestions"></span></div>
-      <div id="domainBreakdown"></div>
-      <button onclick="reviewAnswers()">Review Answers</button>
-      <button onclick="restartExam()">Restart</button>
+    <!-- RESULTS -->
+    <div id="results" class="screen hidden">
+      <div class="card">
+        <h2>Results</h2>
+        <div id="passStatus" class="pass-status"></div>
+        <p>Score: <strong><span id="scorePercentage"></span></strong></p>
+        <p>Correct: <strong><span id="correctAnswers"></span></strong> / <strong><span id="totalQuestions"></span></strong></p>
+
+        <h3>Domain Breakdown</h3>
+        <div id="domainBreakdown" class="domain-breakdown"></div>
+
+        <div class="row">
+          <button class="btn btn-secondary" onclick="reviewAnswers()">Review Answers</button>
+          <button class="btn" onclick="restartExam()">Restart</button>
+        </div>
+      </div>
     </div>
 
   </div>
 
-  <!-- IMPORTANT: questions.js must load before app.js -->
+  <!-- IMPORTANT: questions.js MUST load before app.js -->
   <script src="questions.js"></script>
   <script src="app.js"></script>
 </body>
 </html>
-
