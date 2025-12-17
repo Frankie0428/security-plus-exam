@@ -1,0 +1,380 @@
+// Exam State
+let currentQuestion = 0;
+let userAnswers = new Array(questions.length).fill(null);
+let flaggedQuestions = new Set();
+let examStartTime;
+let timerInterval;
+let examSubmitted = false;
+
+// Initialize Exam
+function initExam() {
+    // Check for saved progress
+    loadProgress();
+    
+    examStartTime = Date.now();
+    document.getElementById('totalQ').textContent = questions.length;
+    loadQuestion();
+    startTimer();
+    
+    // Auto-save progress every 30 seconds
+    setInterval(saveProgress, 30000);
+}
+
+// Save Progress to localStorage
+function saveProgress() {
+    if (examSubmitted) return;
+    
+    const progress = {
+        currentQuestion,
+        userAnswers,
+        flaggedQuestions: Array.from(flaggedQuestions),
+        timeRemaining: document.getElementById('timer').textContent,
+        timestamp: Date.now()
+    };
+    localStorage.setItem('securityPlusProgress', JSON.stringify(progress));
+}
+
+// Load Progress from localStorage
+function loadProgress() {
+    const saved = localStorage.getItem('securityPlusProgress');
+    if (saved) {
+        const progress = JSON.parse(saved);
+        // Only restore if less than 24 hours old
+        if (Date.now() - progress.timestamp < 86400000) {
+            if (confirm('Continue your previous exam attempt?')) {
+                currentQuestion = progress.currentQuestion;
+                userAnswers = progress.userAnswers;
+                flaggedQuestions = new Set(progress.flaggedQuestions);
+            }
+        }
+    }
+}
+
+// Timer
+function startTimer() {
+    let timeRemaining = 90 * 60; // 90 minutes
+    
+    timerInterval = setInterval(() => {
+        if (timeRemaining <= 0 || examSubmitted) {
+            clearInterval(timerInterval);
+            if (!examSubmitted) {
+                alert('Time expired! Submitting exam...');
+                submitExam();
+            }
+            return;
+        }
+        
+        timeRemaining--;
+        const minutes = Math.floor(timeRemaining / 60);
+        const seconds = timeRemaining % 60;
+        const timerEl = document.getElementById('timer');
+        timerEl.textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+        
+        // Warning at 10 minutes
+        if (timeRemaining === 600) {
+            timerEl.classList.add('warning');
+            alert('⚠️ 10 minutes remaining!');
+        }
+    }, 1000);
+}
+
+// Load Question
+function loadQuestion() {
+    const q = questions[currentQuestion];
+    
+    document.getElementById('qNum').textContent = currentQuestion + 1;
+    document.getElementById('currentQ').textContent = currentQuestion + 1;
+    document.getElementById('questionText').textContent = q.question;
+    
+    // Load options
+    const optionsContainer = document.getElementById('optionsContainer');
+    optionsContainer.innerHTML = '';
+    
+    q.options.forEach((option, index) => {
+        const optionDiv = document.createElement('div');
+        optionDiv.className = 'option';
+        if (userAnswers[currentQuestion] === index) {
+            optionDiv.classList.add('selected');
+        }
+        
+        // Show correct/incorrect after submission
+        if (examSubmitted) {
+            optionDiv.classList.add('disabled');
+            if (index === q.correct) {
+                optionDiv.classList.add('correct');
+            }
+            if (userAnswers[currentQuestion] === index && index !== q.correct) {
+                optionDiv.classList.add('incorrect');
+            }
+        }
+        
+        const inputId = `option${index}`;
+        optionDiv.innerHTML = `
+            <input type="radio" 
+                   id="${inputId}" 
+                   name="answer" 
+                   value="${index}" 
+                   ${userAnswers[currentQuestion] === index ? 'checked' : ''}
+                   ${examSubmitted ? 'disabled' : ''}>
+            <label for="${inputId}">${option}</label>
+        `;
+        
+        if (!examSubmitted) {
+            optionDiv.onclick = () => selectOption(index);
+        }
+        optionsContainer.appendChild(optionDiv);
+    });
+    
+    // Update flag button
+    const flagBtn = document.getElementById('flagBtn');
+    if (flaggedQuestions.has(currentQuestion)) {
+        flagBtn.classList.add('flagged');
+        flagBtn.textContent = '🚩 Flagged';
+    } else {
+        flagBtn.classList.remove('flagged');
+        flagBtn.textContent = '🚩 Flag for Review';
+    }
+    
+    // Hide flag button after submission
+    if (examSubmitted) {
+        flagBtn.style.display = 'none';
+    }
+    
+    // Show explanation if submitted
+    const explanationDiv = document.getElementById('explanation');
+    if (examSubmitted) {
+        explanationDiv.classList.remove('hidden');
+        const isCorrect = userAnswers[currentQuestion] === q.correct;
+        explanationDiv.innerHTML = `
+            <strong>${isCorrect ? '✅ Correct!' : '❌ Incorrect'}</strong><br>
+            ${q.explanation}
+        `;
+    } else {
+        explanationDiv.classList.add('hidden');
+    }
+    
+    // Update navigation
+    document.getElementById('prevBtn').disabled = currentQuestion === 0;
+    
+    if (currentQuestion === questions.length - 1) {
+        document.getElementById('nextBtn').classList.add('hidden');
+        document.getElementById('submitBtn').classList.remove('hidden');
+    } else {
+        if (!examSubmitted) {
+            document.getElementById('nextBtn').classList.remove('hidden');
+            document.getElementById('submitBtn').classList.add('hidden');
+        }
+    }
+    
+    updateStats();
+}
+
+// Select Option
+function selectOption(index) {
+    if (examSubmitted) return;
+    
+    userAnswers[currentQuestion] = index;
+    
+    // Update UI
+    document.querySelectorAll('.option').forEach((opt, i) => {
+        opt.classList.toggle('selected', i === index);
+        opt.querySelector('input').checked = i === index;
+    });
+    
+    updateStats();
+    saveProgress();
+}
+
+// Toggle Flag
+function toggleFlag() {
+    if (examSubmitted) return;
+    
+    if (flaggedQuestions.has(currentQuestion)) {
+        flaggedQuestions.delete(currentQuestion);
+    } else {
+        flaggedQuestions.add(currentQuestion);
+    }
+    loadQuestion();
+    saveProgress();
+}
+
+// Navigation
+function nextQuestion() {
+    if (currentQuestion < questions.length - 1) {
+        currentQuestion++;
+        loadQuestion();
+    }
+}
+
+function previousQuestion() {
+    if (currentQuestion > 0) {
+        currentQuestion--;
+        loadQuestion();
+    }
+}
+
+// Show Review Screen
+function showReviewScreen() {
+    document.getElementById('questionContainer').classList.add('hidden');
+    document.getElementById('reviewScreen').classList.remove('hidden');
+    
+    const reviewGrid = document.getElementById('reviewGrid');
+    reviewGrid.innerHTML = '';
+    
+    questions.forEach((q, index) => {
+        const btn = document.createElement('button');
+        btn.className = 'review-question-btn';
+        btn.textContent = index + 1;
+        
+        if (userAnswers[index] !== null) {
+            btn.classList.add('answered');
+        }
+        if (flaggedQuestions.has(index)) {
+            btn.classList.add('flagged');
+        }
+        if (index === currentQuestion) {
+            btn.classList.add('current');
+        }
+        
+        btn.onclick = () => jumpToQuestion(index);
+        reviewGrid.appendChild(btn);
+    });
+}
+
+function closeReviewScreen() {
+    document.getElementById('reviewScreen').classList.add('hidden');
+    document.getElementById('questionContainer').classList.remove('hidden');
+}
+
+function jumpToQuestion(index) {
+    currentQuestion = index;
+    closeReviewScreen();
+    loadQuestion();
+}
+
+// Update Stats
+function updateStats() {
+    const answered = userAnswers.filter(a => a !== null).length;
+    document.getElementById('answeredCount').textContent = answered;
+    document.getElementById('flaggedCount').textContent = flaggedQuestions.size;
+    
+    const progress = (answered / questions.length * 100).toFixed(0);
+    document.getElementById('progressPercent').textContent = progress + '%';
+    document.getElementById('progressBar').style.width = progress + '%';
+}
+
+// Submit Exam
+function submitExam() {
+    const unanswered = userAnswers.filter(a => a === null).length;
+    
+    if (unanswered > 0) {
+        if (!confirm(`You have ${unanswered} unanswered questions. Submit anyway?`)) {
+            return;
+        }
+    }
+    
+    if (!confirm('Submit exam for grading?')) {
+        return;
+    }
+    
+    examSubmitted = true;
+    clearInterval(timerInterval);
+    
+    // Calculate overall score
+    let correct = 0;
+    const domainScores = {};
+    
+    userAnswers.forEach((answer, index) => {
+        const q = questions[index];
+        const domain = q.domain;
+        
+        if (!domainScores[domain]) {
+            domainScores[domain] = { correct: 0, total: 0 };
+        }
+        
+        domainScores[domain].total++;
+        
+        if (answer === q.correct) {
+            correct++;
+            domainScores[domain].correct++;
+        }
+    });
+    
+    const percentage = Math.round((correct / questions.length) * 100);
+    const passed = percentage >= 83;
+    
+    // Show results
+    document.getElementById('questionContainer').classList.add('hidden');
+    document.querySelector('.navigation').classList.add('hidden');
+    document.getElementById('reviewScreen').classList.add('hidden');
+    document.getElementById('results').classList.remove('hidden');
+    
+    document.getElementById('scorePercentage').textContent = percentage + '%';
+    document.getElementById('correctAnswers').textContent = correct;
+    document.getElementById('totalQuestions').textContent = questions.length;
+    
+    const passStatus = document.getElementById('passStatus');
+    if (passed) {
+        passStatus.className = 'pass-status pass';
+        passStatus.textContent = '✅ PASSED! Congratulations!';
+    } else {
+        passStatus.className = 'pass-status fail';
+        passStatus.textContent = `❌ Score: ${percentage}% (Passing: 83%)`;
+    }
+    
+    // Show domain breakdown
+    const domainBreakdown = document.getElementById('domainBreakdown');
+    domainBreakdown.innerHTML = '';
+    
+    Object.keys(domainScores).sort().forEach(domain => {
+        const score = domainScores[domain];
+        const percent = Math.round((score.correct / score.total) * 100);
+        
+        const domainDiv = document.createElement('div');
+        domainDiv.className = 'domain-result';
+        
+        let scoreClass = 'good';
+        if (percent < 70) scoreClass = 'poor';
+        else if (percent < 83) scoreClass = 'average';
+        
+        domainDiv.innerHTML = `
+            <span class="domain-name">${domain}</span>
+            <span class="domain-score ${scoreClass}">
+                ${score.correct}/${score.total} (${percent}%)
+            </span>
+        `;
+        domainBreakdown.appendChild(domainDiv);
+    });
+    
+    // Clear saved progress
+    localStorage.removeItem('securityPlusProgress');
+}
+
+// Review Answers
+function reviewAnswers() {
+    document.getElementById('results').classList.add('hidden');
+    document.getElementById('questionContainer').classList.remove('hidden');
+    document.querySelector('.navigation').classList.remove('hidden');
+    
+    currentQuestion = 0;
+    loadQuestion();
+}
+
+// Restart Exam
+function restartExam() {
+    if (confirm('This will reset all your answers. Continue?')) {
+        localStorage.removeItem('securityPlusProgress');
+        location.reload();
+    }
+}
+
+// Prevent accidental page closure
+window.addEventListener('beforeunload', (e) => {
+    if (!examSubmitted && userAnswers.some(a => a !== null)) {
+        e.preventDefault();
+        e.returnValue = '';
+    }
+});
+
+// Initialize on page load
+window.onload = initExam;
