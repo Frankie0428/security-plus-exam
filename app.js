@@ -1,146 +1,201 @@
-// app.js
-"use strict";
-
 // ========================================
-// CONFIG
+// SETTINGS
 // ========================================
 const EXAM_QUESTION_COUNT = 90;
 const EXAM_TIME_SECONDS = 90 * 60;
-const STORAGE_KEY = "secplus_exam_progress";
+const STORAGE_KEY = "securityPlusExamProgress_v3";
 
 // ========================================
-// STATE
+// EXAM STATE
 // ========================================
 let examQuestions = [];
 let currentQuestion = 0;
 let userAnswers = [];
+let flaggedQuestions = new Set();
+
 let timerInterval = null;
-let examStarted = false;
 let examSubmitted = false;
+let examStarted = false;
 
 // ========================================
 // HELPERS
 // ========================================
-const byId = (id) => document.getElementById(id);
-
-function mustGet(id) {
-  const el = byId(id);
-  if (!el) {
-    console.error(`❌ Missing element: #${id}`);
-  }
-  return el;
+function byId(id) {
+  return document.getElementById(id);
 }
 
-function formatTime(totalSeconds) {
-  const m = Math.floor(totalSeconds / 60);
-  const s = totalSeconds % 60;
+function formatTime(seconds) {
+  const m = Math.floor(seconds / 60);
+  const s = seconds % 60;
   return `${m}:${String(s).padStart(2, "0")}`;
 }
 
-function safeHide(id) {
-  const el = byId(id);
-  if (el) el.classList.add("hidden");
-}
-
-function safeShow(id) {
-  const el = byId(id);
-  if (el) el.classList.remove("hidden");
+function shuffleArray(arr) {
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
 }
 
 // ========================================
-// BUILD EXAM (SAFE + FAST)
+// BUILD EXAM FORM (random N from bank)
 // ========================================
 function buildExamForm() {
-  if (!Array.isArray(window.questionBank) || window.questionBank.length === 0) {
-    alert("❌ Question bank not loaded. Check questions.js and script order in index.html.");
+  const bank = window.questionBank;
+
+  if (!Array.isArray(bank) || bank.length === 0) {
+    alert("questionBank not found. Check questions.js is loading correctly.");
     return false;
   }
 
-  const totalAvailable = window.questionBank.length;
-  const count = Math.min(EXAM_QUESTION_COUNT, totalAvailable);
+  const count = Math.min(EXAM_QUESTION_COUNT, bank.length);
 
-  if (totalAvailable < EXAM_QUESTION_COUNT) {
+  if (bank.length < EXAM_QUESTION_COUNT) {
     alert(
       `⚠️ PRACTICE MODE\n\n` +
-      `You have ${totalAvailable} questions.\n` +
-      `Exam will run with ${count} questions.\n\n` +
-      `Add ${EXAM_QUESTION_COUNT - totalAvailable} more to unlock full exam mode.`
+      `You have ${bank.length} questions.\n` +
+      `This attempt will run with ${count} questions.\n\n` +
+      `Add ${EXAM_QUESTION_COUNT - bank.length} more to unlock full exam mode.`
     );
   }
 
-  // pick unique random indexes
-  const picked = new Set();
-  while (picked.size < count) {
-    picked.add(Math.floor(Math.random() * totalAvailable));
-  }
+  // Efficient sampling: shuffle indices, take first N
+  const indices = Array.from({ length: bank.length }, (_, i) => i);
+  shuffleArray(indices);
+  examQuestions = indices.slice(0, count).map(i => bank[i]);
 
-  examQuestions = Array.from(picked).map((i) => window.questionBank[i]);
-  userAnswers = new Array(examQuestions.length).fill(null);
   currentQuestion = 0;
-
+  userAnswers = new Array(examQuestions.length).fill(null);
+  flaggedQuestions = new Set();
   return true;
 }
 
 // ========================================
-// INIT (runs after DOM is ready)
+// INIT
 // ========================================
 function initApp() {
-  // Don’t crash if some ids are missing — just log it
-  const loadingScreen = mustGet("loadingScreen");
-  const startScreen = mustGet("startScreen");
+  // If HTML broke, these might be null — fail fast with a clear message
+  if (!byId("loadingScreen") || !byId("startScreen")) {
+    alert("HTML is missing required elements (loadingScreen/startScreen). Please re-check index.html.");
+    return;
+  }
 
-  // Wire buttons (NO inline onclick needed)
-  const startBtn = byId("startBtn");
-  if (startBtn) startBtn.addEventListener("click", startExam);
-
-  const prevBtn = byId("prevBtn");
-  if (prevBtn) prevBtn.addEventListener("click", previousQuestion);
-
-  const nextBtn = byId("nextBtn");
-  if (nextBtn) nextBtn.addEventListener("click", nextQuestion);
-
-  const submitBtn = byId("submitBtn");
-  if (submitBtn) submitBtn.addEventListener("click", confirmSubmit);
-
-  // Show start screen
-  if (loadingScreen) loadingScreen.classList.add("hidden");
-  if (startScreen) startScreen.classList.remove("hidden");
-
-  console.log("✅ App initialized");
+  // Show start screen quickly
+  setTimeout(() => {
+    byId("loadingScreen").classList.add("hidden");
+    byId("startScreen").classList.remove("hidden");
+    checkSavedProgress();
+  }, 250);
 }
 
-window.addEventListener("DOMContentLoaded", initApp);
+// ========================================
+// SAVE / LOAD PROGRESS
+// ========================================
+function checkSavedProgress() {
+  const saved = localStorage.getItem(STORAGE_KEY);
+  if (!saved) return;
+
+  try {
+    const progress = JSON.parse(saved);
+    const ts = new Date(progress.timestamp);
+    const hoursDiff = (Date.now() - ts.getTime()) / (1000 * 60 * 60);
+
+    // expire after 24 hours
+    if (hoursDiff >= 24) {
+      localStorage.removeItem(STORAGE_KEY);
+      return;
+    }
+
+    byId("savedProgress").classList.remove("hidden");
+    byId("savedTime").textContent = ts.toLocaleString();
+  } catch {
+    localStorage.removeItem(STORAGE_KEY);
+  }
+}
+
+function saveProgress(timeRemainingSeconds) {
+  if (examSubmitted || !examStarted) return;
+
+  const payload = {
+    examQuestions,
+    currentQuestion,
+    userAnswers,
+    flaggedQuestions: Array.from(flaggedQuestions),
+    timeRemainingSeconds,
+    timestamp: new Date().toISOString()
+  };
+
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
+}
+
+function loadSavedProgress() {
+  const saved = localStorage.getItem(STORAGE_KEY);
+  if (!saved) return null;
+
+  try {
+    const progress = JSON.parse(saved);
+
+    if (!Array.isArray(progress.examQuestions) || progress.examQuestions.length < 1) return null;
+    if (!Array.isArray(progress.userAnswers) || progress.userAnswers.length !== progress.examQuestions.length) return null;
+
+    examQuestions = progress.examQuestions;
+    currentQuestion = Number.isFinite(progress.currentQuestion) ? progress.currentQuestion : 0;
+    userAnswers = progress.userAnswers;
+    flaggedQuestions = new Set(progress.flaggedQuestions || []);
+
+    return progress;
+  } catch {
+    return null;
+  }
+}
 
 // ========================================
 // START EXAM
 // ========================================
-function startExam() {
+function startFreshExam() {
+  localStorage.removeItem(STORAGE_KEY);
   if (!buildExamForm()) return;
+  startExam(EXAM_TIME_SECONDS);
+}
 
+function continueExam() {
+  const progress = loadSavedProgress();
+  if (!progress) {
+    alert("Could not load saved progress. Starting fresh exam.");
+    return startFreshExam();
+  }
+  startExam(progress.timeRemainingSeconds ?? EXAM_TIME_SECONDS);
+}
+
+function startExam(timeRemainingSeconds) {
   examStarted = true;
   examSubmitted = false;
 
-  safeHide("startScreen");
-  safeShow("examContainer");
-  safeHide("results");
+  byId("startScreen").classList.add("hidden");
+  byId("examContainer").classList.remove("hidden");
+  byId("results").classList.add("hidden");
+  byId("reviewScreen").classList.add("hidden");
+  byId("questionContainer").classList.remove("hidden");
+  document.querySelector(".navigation")?.classList.remove("hidden");
 
-  const totalQ = byId("totalQ");
-  if (totalQ) totalQ.textContent = String(examQuestions.length);
+  byId("totalQ").textContent = examQuestions.length;
 
   loadQuestion();
-  startTimer(EXAM_TIME_SECONDS);
+  startTimer(timeRemainingSeconds);
 }
 
 // ========================================
 // TIMER
 // ========================================
-function startTimer(seconds) {
-  let remaining = Number.isFinite(seconds) ? seconds : EXAM_TIME_SECONDS;
-  const timerEl = mustGet("timer");
+function startTimer(timeRemainingSeconds) {
+  let remaining = Number.isFinite(timeRemainingSeconds) ? timeRemainingSeconds : EXAM_TIME_SECONDS;
+  const timerEl = byId("timer");
 
   if (timerInterval) clearInterval(timerInterval);
 
-  if (timerEl) timerEl.textContent = formatTime(remaining);
+  timerEl.classList.remove("warning");
+  timerEl.textContent = formatTime(remaining);
 
   timerInterval = setInterval(() => {
     if (examSubmitted) {
@@ -149,81 +204,165 @@ function startTimer(seconds) {
     }
 
     remaining--;
-    if (timerEl) timerEl.textContent = formatTime(Math.max(0, remaining));
+    timerEl.textContent = formatTime(Math.max(0, remaining));
 
-    if (remaining === 600) alert("⚠️ 10 minutes remaining");
-    if (remaining === 300) alert("⚠️ 5 minutes remaining");
-
-    if (remaining <= 0) {
-      alert("⏰ Time expired. Submitting exam.");
-      submitExam();
+    if (remaining === 600) {
+      timerEl.classList.add("warning");
+      alert("⚠️ 10 minutes remaining!");
     }
+    if (remaining === 300) {
+      alert("⚠️ 5 minutes remaining!");
+    }
+    if (remaining <= 0) {
+      alert("⏰ Time expired! Submitting exam…");
+      submitExam();
+      return;
+    }
+
+    saveProgress(remaining);
   }, 1000);
 }
 
 // ========================================
-// QUESTIONS UI
+// QUESTION UI
 // ========================================
 function loadQuestion() {
   const q = examQuestions[currentQuestion];
   if (!q) return;
 
-  const qNum = mustGet("qNum");
-  const questionText = mustGet("questionText");
-  const questionDomain = mustGet("questionDomain");
-  const optionsContainer = mustGet("optionsContainer");
+  byId("qNum").textContent = currentQuestion + 1;
+  byId("currentQ").textContent = currentQuestion + 1;
+  byId("questionDomain").textContent = q.domain || "";
+  byId("questionText").textContent = q.question || "";
 
-  if (qNum) qNum.textContent = String(currentQuestion + 1);
-  if (questionText) questionText.textContent = q.question || "";
-  if (questionDomain) questionDomain.textContent = q.domain || "";
-
-  if (!optionsContainer) return;
+  const optionsContainer = byId("optionsContainer");
   optionsContainer.innerHTML = "";
 
-  q.options.forEach((text, i) => {
+  q.options.forEach((optText, index) => {
     const optionDiv = document.createElement("div");
     optionDiv.className = "option";
 
-    const inputId = `q${currentQuestion}_opt${i}`;
-    const checked = userAnswers[currentQuestion] === i;
+    if (userAnswers[currentQuestion] === index) optionDiv.classList.add("selected");
 
-    if (checked) optionDiv.classList.add("selected");
+    if (examSubmitted) {
+      optionDiv.classList.add("disabled");
+      if (index === q.correct) optionDiv.classList.add("correct");
+      if (userAnswers[currentQuestion] === index && index !== q.correct) optionDiv.classList.add("incorrect");
+    }
 
+    const inputId = `q${currentQuestion}_opt${index}`;
     optionDiv.innerHTML = `
-      <input type="radio" id="${inputId}" name="q${currentQuestion}" ${checked ? "checked" : ""} />
-      <label for="${inputId}">${text}</label>
+      <input type="radio"
+             id="${inputId}"
+             name="q${currentQuestion}"
+             value="${index}"
+             ${userAnswers[currentQuestion] === index ? "checked" : ""}
+             ${examSubmitted ? "disabled" : ""}>
+      <label for="${inputId}">${optText}</label>
     `;
 
-    // Clicking the whole row selects the option
-    optionDiv.addEventListener("click", () => {
-      if (examSubmitted) return;
-      userAnswers[currentQuestion] = i;
-      loadQuestion(); // re-render to update selected state
-    });
-
+    if (!examSubmitted) optionDiv.addEventListener("click", () => selectOption(index));
     optionsContainer.appendChild(optionDiv);
   });
 
-  updateNav();
+  updateFlagButton();
+  updateExplanation();
+  updateNavigation();
   updateStats();
   window.scrollTo(0, 0);
 }
 
-// ========================================
-// NAV
-// ========================================
-function updateNav() {
+function selectOption(index) {
+  if (examSubmitted) return;
+
+  userAnswers[currentQuestion] = index;
+
+  document.querySelectorAll(".option").forEach((el, i) => {
+    el.classList.toggle("selected", i === index);
+    const input = el.querySelector("input");
+    if (input) input.checked = (i === index);
+  });
+
+  updateStats();
+}
+
+function toggleFlag() {
+  if (examSubmitted) return;
+
+  if (flaggedQuestions.has(currentQuestion)) flaggedQuestions.delete(currentQuestion);
+  else flaggedQuestions.add(currentQuestion);
+
+  updateFlagButton();
+  updateStats();
+}
+
+function updateFlagButton() {
+  const btn = byId("flagBtn");
+  if (!btn) return;
+
+  if (examSubmitted) {
+    btn.style.display = "none";
+    return;
+  }
+
+  btn.style.display = "";
+  if (flaggedQuestions.has(currentQuestion)) {
+    btn.classList.add("flagged");
+    btn.textContent = "🚩 Flagged";
+  } else {
+    btn.classList.remove("flagged");
+    btn.textContent = "🚩 Flag";
+  }
+}
+
+function updateExplanation() {
+  const div = byId("explanation");
+  if (!div) return;
+
+  if (!examSubmitted) {
+    div.classList.add("hidden");
+    div.innerHTML = "";
+    return;
+  }
+
+  const q = examQuestions[currentQuestion];
+  const isCorrect = userAnswers[currentQuestion] === q.correct;
+
+  div.classList.remove("hidden");
+  div.innerHTML = `<strong>${isCorrect ? "✅ Correct!" : "❌ Incorrect"}</strong><br><br>${q.explanation || ""}`;
+}
+
+function updateNavigation() {
   const prevBtn = byId("prevBtn");
   const nextBtn = byId("nextBtn");
   const submitBtn = byId("submitBtn");
 
   if (prevBtn) prevBtn.disabled = currentQuestion === 0;
 
-  const isLast = currentQuestion === examQuestions.length - 1;
-  if (nextBtn) nextBtn.classList.toggle("hidden", isLast);
-  if (submitBtn) submitBtn.classList.toggle("hidden", !isLast);
+  if (nextBtn && submitBtn) {
+    if (currentQuestion === examQuestions.length - 1 && !examSubmitted) {
+      nextBtn.classList.add("hidden");
+      submitBtn.classList.remove("hidden");
+    } else {
+      nextBtn.classList.remove("hidden");
+      submitBtn.classList.add("hidden");
+    }
+  }
 }
 
+function updateStats() {
+  const answered = userAnswers.filter(x => x !== null).length;
+  const progress = Math.round((answered / examQuestions.length) * 100);
+
+  byId("answeredCount").textContent = answered;
+  byId("flaggedCount").textContent = flaggedQuestions.size;
+  byId("progressPercent").textContent = `${progress}%`;
+  byId("progressBar").style.width = `${progress}%`;
+}
+
+// ========================================
+// NAVIGATION
+// ========================================
 function nextQuestion() {
   if (currentQuestion < examQuestions.length - 1) {
     currentQuestion++;
@@ -239,30 +378,48 @@ function previousQuestion() {
 }
 
 // ========================================
-// STATS
+// REVIEW SCREEN
 // ========================================
-function updateStats() {
-  const answered = userAnswers.filter((x) => x !== null).length;
-  const percent = examQuestions.length ? Math.round((answered / examQuestions.length) * 100) : 0;
+function showReviewScreen() {
+  byId("questionContainer").classList.add("hidden");
+  byId("reviewScreen").classList.remove("hidden");
 
-  const answeredCount = byId("answeredCount");
-  const progressPercent = byId("progressPercent");
-  const progressBar = byId("progressBar");
+  const grid = byId("reviewGrid");
+  grid.innerHTML = "";
 
-  if (answeredCount) answeredCount.textContent = String(answered);
-  if (progressPercent) progressPercent.textContent = `${percent}%`;
-  if (progressBar) progressBar.style.width = `${percent}%`;
+  examQuestions.forEach((_, idx) => {
+    const btn = document.createElement("button");
+    btn.className = "review-question-btn";
+    btn.textContent = String(idx + 1);
+
+    if (userAnswers[idx] !== null) btn.classList.add("answered");
+    if (flaggedQuestions.has(idx)) btn.classList.add("flagged");
+    if (idx === currentQuestion) btn.classList.add("current");
+
+    btn.addEventListener("click", () => jumpToQuestion(idx));
+    grid.appendChild(btn);
+  });
+}
+
+function closeReviewScreen() {
+  byId("reviewScreen").classList.add("hidden");
+  byId("questionContainer").classList.remove("hidden");
+}
+
+function jumpToQuestion(idx) {
+  currentQuestion = idx;
+  closeReviewScreen();
+  loadQuestion();
 }
 
 // ========================================
 // SUBMIT / RESULTS
 // ========================================
 function confirmSubmit() {
-  const unanswered = userAnswers.filter((a) => a === null).length;
-  const msg =
-    unanswered > 0
-      ? `You have ${unanswered} unanswered question(s).\n\nSubmit exam for grading?`
-      : "Submit exam for grading?";
+  const unanswered = userAnswers.filter(a => a === null).length;
+  const msg = unanswered > 0
+    ? `You have ${unanswered} unanswered question(s).\n\nSubmit exam for grading?`
+    : "Submit exam for grading?";
 
   if (confirm(msg)) submitExam();
 }
@@ -271,36 +428,99 @@ function submitExam() {
   examSubmitted = true;
   if (timerInterval) clearInterval(timerInterval);
 
+  const results = calculateResults();
+  showResults(results);
+
+  localStorage.removeItem(STORAGE_KEY);
+}
+
+function calculateResults() {
   let correct = 0;
-  userAnswers.forEach((a, i) => {
-    if (a === examQuestions[i].correct) correct++;
+  const domainScores = {};
+
+  userAnswers.forEach((answer, i) => {
+    const q = examQuestions[i];
+    const d = q.domain || "Unknown";
+
+    if (!domainScores[d]) domainScores[d] = { correct: 0, total: 0 };
+    domainScores[d].total++;
+
+    if (answer === q.correct) {
+      correct++;
+      domainScores[d].correct++;
+    }
   });
 
-  const score = examQuestions.length ? Math.round((correct / examQuestions.length) * 100) : 0;
+  const percentage = Math.round((correct / examQuestions.length) * 100);
+  const passed = percentage >= 83;
 
-  safeHide("examContainer");
-  safeShow("results");
+  return { correct, total: examQuestions.length, percentage, passed, domainScores };
+}
 
-  const scorePercentage = byId("scorePercentage");
-  const correctAnswers = byId("correctAnswers");
-  const totalQuestions = byId("totalQuestions");
+function showResults(results) {
+  byId("questionContainer").classList.add("hidden");
+  document.querySelector(".navigation")?.classList.add("hidden");
+  byId("reviewScreen").classList.add("hidden");
+  byId("results").classList.remove("hidden");
 
-  if (scorePercentage) scorePercentage.textContent = `${score}%`;
-  if (correctAnswers) correctAnswers.textContent = String(correct);
-  if (totalQuestions) totalQuestions.textContent = String(examQuestions.length);
+  byId("scorePercentage").textContent = `${results.percentage}%`;
+  byId("correctAnswers").textContent = results.correct;
+  byId("totalQuestions").textContent = results.total;
 
-  // Optional: clear saved progress
-  try {
+  const passStatus = byId("passStatus");
+  passStatus.className = results.passed ? "pass-status pass" : "pass-status fail";
+  passStatus.textContent = results.passed
+    ? "✅ PASSED! Great job!"
+    : `❌ Not passed (Score: ${results.percentage}%, Passing: 83%)`;
+
+  const breakdown = byId("domainBreakdown");
+  breakdown.innerHTML = "";
+
+  Object.keys(results.domainScores).sort().forEach(domain => {
+    const s = results.domainScores[domain];
+    const pct = Math.round((s.correct / s.total) * 100);
+
+    let cls = "good";
+    if (pct < 70) cls = "poor";
+    else if (pct < 83) cls = "average";
+
+    const row = document.createElement("div");
+    row.className = "domain-result";
+    row.innerHTML = `
+      <span class="domain-name">${domain}</span>
+      <span class="domain-score ${cls}">${s.correct}/${s.total} (${pct}%)</span>
+    `;
+    breakdown.appendChild(row);
+  });
+}
+
+function reviewAnswers() {
+  byId("results").classList.add("hidden");
+  byId("questionContainer").classList.remove("hidden");
+  document.querySelector(".navigation")?.classList.remove("hidden");
+
+  currentQuestion = 0;
+  loadQuestion();
+}
+
+function restartExam() {
+  if (confirm("Reset all answers and start over?")) {
     localStorage.removeItem(STORAGE_KEY);
-  } catch {}
+    location.reload();
+  }
 }
 
 // ========================================
 // SAFETY: prevent accidental close
 // ========================================
 window.addEventListener("beforeunload", (e) => {
-  if (examStarted && !examSubmitted && userAnswers.some((a) => a !== null)) {
+  if (examStarted && !examSubmitted && userAnswers.some(a => a !== null)) {
     e.preventDefault();
     e.returnValue = "";
   }
 });
+
+// ========================================
+// BOOT
+// ========================================
+window.addEventListener("load", initApp);
