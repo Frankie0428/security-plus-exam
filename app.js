@@ -1,29 +1,77 @@
 // ========================================
+// SETTINGS
+// ========================================
+const EXAM_QUESTION_COUNT = 90;
+const EXAM_TIME_SECONDS = 90 * 60;
+const STORAGE_KEY = "securityPlusExamProgress_v2";
+
+// ========================================
 // EXAM STATE
 // ========================================
+let examQuestions = [];     // the 90 questions for THIS attempt
 let currentQuestion = 0;
 let userAnswers = [];
 let flaggedQuestions = new Set();
+
 let timerInterval = null;
 let examSubmitted = false;
 let examStarted = false;
 
-// localStorage key
-const STORAGE_KEY = "securityPlusExamProgress";
+// ========================================
+// HELPERS
+// ========================================
+function byId(id) {
+  return document.getElementById(id);
+}
+
+function formatTime(seconds) {
+  const m = Math.floor(seconds / 60);
+  const s = seconds % 60;
+  return `${m}:${String(s).padStart(2, "0")}`;
+}
+
+function shuffleArray(arr) {
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
 
 // ========================================
-// INITIALIZATION
+// BUILD EXAM FORM (random 90 from bank)
+// ========================================
+function buildExamForm() {
+  if (!Array.isArray(questionBank) || questionBank.length === 0) {
+    alert("questionBank not found. Check questions.js is loading correctly.");
+    return false;
+  }
+
+  if (questionBank.length < EXAM_QUESTION_COUNT) {
+    alert(`You have ${questionBank.length} questions in your bank. Add ${EXAM_QUESTION_COUNT - questionBank.length} more to reach 90.`);
+    return false;
+  }
+
+  const pool = shuffleArray([...questionBank]);
+  examQuestions = pool.slice(0, EXAM_QUESTION_COUNT);
+
+  currentQuestion = 0;
+  userAnswers = new Array(examQuestions.length).fill(null);
+  flaggedQuestions = new Set();
+
+  return true;
+}
+
+// ========================================
+// INIT
 // ========================================
 function initApp() {
-  // Validate questions exist
-  if (!Array.isArray(questions) || questions.length === 0) {
-    alert("questions.js did not load or has no questions.");
+  // basic bank check
+  if (!Array.isArray(questionBank) || questionBank.length === 0) {
+    alert("questions.js did not load (questionBank missing).");
     return;
   }
 
-  userAnswers = new Array(questions.length).fill(null);
-
-  // Show start screen after a brief load
   setTimeout(() => {
     byId("loadingScreen").classList.add("hidden");
     byId("startScreen").classList.remove("hidden");
@@ -31,12 +79,8 @@ function initApp() {
   }, 600);
 }
 
-function byId(id) {
-  return document.getElementById(id);
-}
-
 // ========================================
-// SAVED PROGRESS
+// SAVE / LOAD PROGRESS
 // ========================================
 function checkSavedProgress() {
   const saved = localStorage.getItem(STORAGE_KEY);
@@ -63,6 +107,7 @@ function saveProgress(timeRemainingSeconds) {
   if (examSubmitted || !examStarted) return;
 
   const payload = {
+    examQuestions, // ✅ saves the exact 90-question form
     currentQuestion,
     userAnswers,
     flaggedQuestions: Array.from(flaggedQuestions),
@@ -80,9 +125,14 @@ function loadSavedProgress() {
   try {
     const progress = JSON.parse(saved);
 
-    // basic sanity
-    if (!Array.isArray(progress.userAnswers)) return null;
+    if (!Array.isArray(progress.examQuestions) || progress.examQuestions.length !== EXAM_QUESTION_COUNT) {
+      return null;
+    }
+    if (!Array.isArray(progress.userAnswers) || progress.userAnswers.length !== EXAM_QUESTION_COUNT) {
+      return null;
+    }
 
+    examQuestions = progress.examQuestions;
     currentQuestion = progress.currentQuestion ?? 0;
     userAnswers = progress.userAnswers;
     flaggedQuestions = new Set(progress.flaggedQuestions || []);
@@ -98,26 +148,17 @@ function loadSavedProgress() {
 // ========================================
 function startFreshExam() {
   localStorage.removeItem(STORAGE_KEY);
-  currentQuestion = 0;
-  userAnswers = new Array(questions.length).fill(null);
-  flaggedQuestions = new Set();
-  startExam(90 * 60);
+  if (!buildExamForm()) return;
+  startExam(EXAM_TIME_SECONDS);
 }
 
 function continueExam() {
   const progress = loadSavedProgress();
   if (!progress) {
-    alert("Could not load saved progress. Starting fresh.");
+    alert("Could not load saved progress. Starting fresh exam.");
     return startFreshExam();
   }
-
-  // if saved answers length doesn't match current questions length, reset
-  if (progress.userAnswers.length !== questions.length) {
-    alert("Saved progress doesn't match current question set. Starting fresh.");
-    return startFreshExam();
-  }
-
-  startExam(progress.timeRemainingSeconds ?? 90 * 60);
+  startExam(progress.timeRemainingSeconds ?? EXAM_TIME_SECONDS);
 }
 
 function startExam(timeRemainingSeconds) {
@@ -127,7 +168,8 @@ function startExam(timeRemainingSeconds) {
   byId("startScreen").classList.add("hidden");
   byId("examContainer").classList.remove("hidden");
 
-  byId("totalQ").textContent = questions.length;
+  byId("totalQ").textContent = examQuestions.length;
+
   loadQuestion();
   startTimer(timeRemainingSeconds);
 }
@@ -136,10 +178,9 @@ function startExam(timeRemainingSeconds) {
 // TIMER
 // ========================================
 function startTimer(timeRemainingSeconds) {
-  let remaining = Number.isFinite(timeRemainingSeconds) ? timeRemainingSeconds : 90 * 60;
+  let remaining = Number.isFinite(timeRemainingSeconds) ? timeRemainingSeconds : EXAM_TIME_SECONDS;
   const timerEl = byId("timer");
 
-  // clear any old timer
   if (timerInterval) clearInterval(timerInterval);
 
   timerEl.classList.remove("warning");
@@ -167,23 +208,15 @@ function startTimer(timeRemainingSeconds) {
       return;
     }
 
-    // autosave every tick? (cheap + reliable)
-    // If you want only every 30 seconds, we can throttle — but this is simple.
     saveProgress(remaining);
   }, 1000);
 }
 
-function formatTime(seconds) {
-  const m = Math.floor(seconds / 60);
-  const s = seconds % 60;
-  return `${m}:${String(s).padStart(2, "0")}`;
-}
-
 // ========================================
-// QUESTION LOADING / UI
+// QUESTION UI
 // ========================================
 function loadQuestion() {
-  const q = questions[currentQuestion];
+  const q = examQuestions[currentQuestion];
 
   byId("qNum").textContent = currentQuestion + 1;
   byId("currentQ").textContent = currentQuestion + 1;
@@ -257,7 +290,6 @@ function updateFlagButton() {
     btn.style.display = "none";
     return;
   }
-
   btn.style.display = "";
   if (flaggedQuestions.has(currentQuestion)) {
     btn.classList.add("flagged");
@@ -276,7 +308,7 @@ function updateExplanation() {
     return;
   }
 
-  const q = questions[currentQuestion];
+  const q = examQuestions[currentQuestion];
   const isCorrect = userAnswers[currentQuestion] === q.correct;
 
   div.classList.remove("hidden");
@@ -290,7 +322,7 @@ function updateNavigation() {
 
   prevBtn.disabled = currentQuestion === 0;
 
-  if (currentQuestion === questions.length - 1 && !examSubmitted) {
+  if (currentQuestion === examQuestions.length - 1 && !examSubmitted) {
     nextBtn.classList.add("hidden");
     submitBtn.classList.remove("hidden");
   } else {
@@ -301,7 +333,7 @@ function updateNavigation() {
 
 function updateStats() {
   const answered = userAnswers.filter(x => x !== null).length;
-  const progress = Math.round((answered / questions.length) * 100);
+  const progress = Math.round((answered / examQuestions.length) * 100);
 
   byId("answeredCount").textContent = answered;
   byId("flaggedCount").textContent = flaggedQuestions.size;
@@ -313,7 +345,7 @@ function updateStats() {
 // NAVIGATION
 // ========================================
 function nextQuestion() {
-  if (currentQuestion < questions.length - 1) {
+  if (currentQuestion < examQuestions.length - 1) {
     currentQuestion++;
     loadQuestion();
   }
@@ -336,7 +368,7 @@ function showReviewScreen() {
   const grid = byId("reviewGrid");
   grid.innerHTML = "";
 
-  questions.forEach((_, idx) => {
+  examQuestions.forEach((_, idx) => {
     const btn = document.createElement("button");
     btn.className = "review-question-btn";
     btn.textContent = String(idx + 1);
@@ -362,7 +394,7 @@ function jumpToQuestion(idx) {
 }
 
 // ========================================
-// SUBMIT EXAM / RESULTS
+// SUBMIT / RESULTS
 // ========================================
 function confirmSubmit() {
   const unanswered = userAnswers.filter(a => a === null).length;
@@ -388,7 +420,7 @@ function calculateResults() {
   const domainScores = {};
 
   userAnswers.forEach((answer, i) => {
-    const q = questions[i];
+    const q = examQuestions[i];
     const d = q.domain || "Unknown";
 
     if (!domainScores[d]) domainScores[d] = { correct: 0, total: 0 };
@@ -400,16 +432,18 @@ function calculateResults() {
     }
   });
 
-  const percentage = Math.round((correct / questions.length) * 100);
+  const percentage = Math.round((correct / examQuestions.length) * 100);
   const passed = percentage >= 83;
 
-  return { correct, total: questions.length, percentage, passed, domainScores };
+  return { correct, total: examQuestions.length, percentage, passed, domainScores };
 }
 
 function showResults(results) {
   byId("questionContainer").classList.add("hidden");
+
   const nav = document.querySelector(".nav");
   if (nav) nav.classList.add("hidden");
+
   byId("reviewScreen").classList.add("hidden");
   byId("results").classList.remove("hidden");
 
@@ -447,6 +481,7 @@ function showResults(results) {
 function reviewAnswers() {
   byId("results").classList.add("hidden");
   byId("questionContainer").classList.remove("hidden");
+
   const nav = document.querySelector(".nav");
   if (nav) nav.classList.remove("hidden");
 
@@ -483,7 +518,7 @@ document.addEventListener("keydown", (e) => {
 
   if (["1","2","3","4"].includes(e.key)) {
     const idx = parseInt(e.key, 10) - 1;
-    const q = questions[currentQuestion];
+    const q = examQuestions[currentQuestion];
     if (idx >= 0 && idx < q.options.length) selectOption(idx);
   }
 
@@ -495,3 +530,4 @@ document.addEventListener("keydown", (e) => {
 // BOOT
 // ========================================
 window.addEventListener("load", initApp);
+
