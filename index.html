@@ -8,56 +8,74 @@
 </head>
 <body>
 
-  <div id="questionContainer">
+  <div id="loadingScreen">Loading questions…</div>
+
+  <div id="startScreen" class="hidden">
+    <h1>Security+ Practice Exam</h1>
+
+    <div id="savedProgress" class="hidden">
+      <p>Saved attempt found: <span id="savedTime"></span></p>
+      <button onclick="continueExam()">Continue</button>
+    </div>
+
+    <button onclick="startFreshExam()">Start New Exam</button>
+  </div>
+
+  <div id="examContainer" class="hidden">
+
+    <div id="questionContainer">
+      <div>
+        Time: <span id="timer">90:00</span> |
+        Question <span id="currentQ">1</span>/<span id="totalQ">0</span>
+      </div>
+
+      <div id="questionDomain"></div>
+      <h2>Question <span id="qNum">1</span></h2>
+      <div id="questionText"></div>
+
+      <div id="optionsContainer"></div>
+
+      <button id="flagBtn" onclick="toggleFlag()">🚩 Flag</button>
+      <div id="explanation" class="hidden"></div>
+    </div>
+
+    <div id="reviewScreen" class="hidden">
+      <h2>Review</h2>
+      <div id="reviewGrid"></div>
+      <button onclick="closeReviewScreen()">Close</button>
+    </div>
+
+    <div class="navigation">
+      <button id="prevBtn" onclick="previousQuestion()">Prev</button>
+      <button onclick="showReviewScreen()">Review</button>
+      <button id="nextBtn" onclick="nextQuestion()">Next</button>
+      <button id="submitBtn" class="hidden" onclick="confirmSubmit()">Submit</button>
+    </div>
+
     <div>
-      Time: <span id="timer">90:00</span>
-      | Question <span id="currentQ">1</span>/<span id="totalQ">0</span>
+      Answered: <span id="answeredCount">0</span> |
+      Flagged: <span id="flaggedCount">0</span> |
+      Progress: <span id="progressPercent">0%</span>
+      <div style="width:100%;background:#ddd;height:10px;">
+        <div id="progressBar" style="height:10px;width:0%;"></div>
+      </div>
     </div>
 
-    <h2>Question <span id="qNum">1</span></h2>
-    <div id="questionText"></div>
-
-    <div id="optionsContainer"></div>
-
-    <button id="flagBtn" onclick="toggleFlag()">🚩 Flag for Review</button>
-
-    <div id="explanation" class="hidden"></div>
-  </div>
-
-  <div id="reviewScreen" class="hidden">
-    <h2>Review</h2>
-    <div id="reviewGrid"></div>
-    <button onclick="closeReviewScreen()">Close</button>
-  </div>
-
-  <div class="navigation">
-    <button id="prevBtn" onclick="previousQuestion()">Prev</button>
-    <button onclick="showReviewScreen()">Review</button>
-    <button id="nextBtn" onclick="nextQuestion()">Next</button>
-    <button id="submitBtn" class="hidden" onclick="submitExam()">Submit</button>
-  </div>
-
-  <div>
-    Answered: <span id="answeredCount">0</span>
-    | Flagged: <span id="flaggedCount">0</span>
-    | Progress: <span id="progressPercent">0%</span>
-    <div style="width:100%;background:#ddd;height:10px;">
-      <div id="progressBar" style="height:10px;width:0%;"></div>
+    <div id="results" class="hidden">
+      <h2>Results</h2>
+      <div id="passStatus"></div>
+      <div>Score: <span id="scorePercentage"></span></div>
+      <div>Correct: <span id="correctAnswers"></span> / <span id="totalQuestions"></span></div>
+      <div id="domainBreakdown"></div>
+      <button onclick="reviewAnswers()">Review Answers</button>
+      <button onclick="restartExam()">Restart</button>
     </div>
+
   </div>
 
-  <div id="results" class="hidden">
-    <h2>Results</h2>
-    <div id="passStatus"></div>
-    <div>Score: <span id="scorePercentage"></span></div>
-    <div>Correct: <span id="correctAnswers"></span> / <span id="totalQuestions"></span></div>
-    <div id="domainBreakdown"></div>
-    <button onclick="reviewAnswers()">Review Answers</button>
-    <button onclick="restartExam()">Restart</button>
-  </div>
-
-  <!-- IMPORTANT: questions.js MUST load before your exam JS -->
+  <!-- IMPORTANT: questions.js must load before app.js -->
   <script src="questions.js"></script>
   <script src="app.js"></script>
 </body>
 </html>
+
