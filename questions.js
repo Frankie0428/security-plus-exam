@@ -1,21 +1,35 @@
+// questions.js
+// Global question bank used by the exam engine
+
 const questionBank = [
   {
     id: 1,
     domain: "1.0 General Security Concepts",
-    question: "A security administrator needs to prevent lateral movement within the network after an initial compromise. Which Zero Trust principle BEST addresses this requirement?",
-    options: ["Adaptive identity verification", "Policy-driven access control", "Threat scope reduction", "Continuous verification"],
+    question:
+      "A security administrator needs to prevent lateral movement within the network after an initial compromise. Which Zero Trust principle BEST addresses this requirement?",
+    options: [
+      "Adaptive identity verification",
+      "Policy-driven access control",
+      "Threat scope reduction",
+      "Continuous verification"
+    ],
     correct: 2,
-    explanation: "Threat scope reduction limits lateral movement by implementing network segmentation and micro-segmentation, preventing attackers from moving freely across the network after initial compromise."
+    explanation:
+      "Threat scope reduction limits lateral movement through segmentation and micro-segmentation."
   },
   {
     id: 2,
     domain: "1.0 General Security Concepts",
-    question: "During a gap analysis, your organization identifies that customer service representatives can access financial records they don't need for their job functions. Which security principle is being violated?",
-    options: ["Separation of duties", "Need to know", "Least privilege", "Defense in depth"],
-    correct: 2,
-    explanation: "Least privilege means users should only have access to resources necessary for their job functions. Granting unnecessary access to financial records violates this principle."
-  },
-  {
+    question:
+      "Which security principle ensures users only have access necessary to perform their job functions?",
+    options: ["Separation of duties", "Least privilege", "Defense in depth", "Need to know"],
+    correct: 1,
+    explanation:
+      "Least privilege limits access to only what is required for a role."
+  }
+
+  // 👉 KEEP ADDING QUESTIONS HERE
+];
     id: 3,
     domain: "1.0 General Security Concepts",
     question: "A company implements bollards around the perimeter of their data center. This is an example of which type of physical security control?",
@@ -274,3 +288,4 @@ const questionBank = [
   { id: 89, domain: "5.0 Security Program Management and Oversight", question: "A company maps its security controls to a recognized framework to demonstrate due diligence. Which framework is MOST commonly used in many U.S. organizations?", options: ["NIST CSF", "WEP", "ARP", "SMTP"], correct: 0, explanation: "NIST CSF is widely used to organize and communicate cybersecurity risk management." },
   { id: 90, domain: "5.0 Security Program Management and Oversight", question: "Which documentation MOST directly defines steps required to securely dispose of storage devices at end of life?", options: ["Media sanitization policy/standard", "Acceptable use policy", "SLA", "MOU"], correct: 0, explanation: "Media sanitization standards define approved disposal, wiping, and destruction procedures." }
 ];
+
