@@ -48,17 +48,21 @@ function buildExamForm() {
   }
 
   if (questionBank.length < EXAM_QUESTION_COUNT) {
-    alert(`You have ${questionBank.length} questions in your bank. Add ${EXAM_QUESTION_COUNT - questionBank.length} more to reach 90.`);
+    alert(`You have ${questionBank.length} questions. Add ${EXAM_QUESTION_COUNT - questionBank.length} more.`);
     return false;
   }
 
-  const pool = shuffleArray([...questionBank]);
-  examQuestions = pool.slice(0, EXAM_QUESTION_COUNT);
+  // Pick 90 unique random questions WITHOUT shuffling the whole bank
+  const picked = new Set();
+  while (picked.size < EXAM_QUESTION_COUNT) {
+    picked.add(Math.floor(Math.random() * questionBank.length));
+  }
+
+  examQuestions = Array.from(picked).map(i => questionBank[i]);
 
   currentQuestion = 0;
   userAnswers = new Array(examQuestions.length).fill(null);
   flaggedQuestions = new Set();
-
   return true;
 }
 
@@ -500,3 +504,4 @@ window.addEventListener("beforeunload", (e) => {
 // BOOT
 // ========================================
 window.addEventListener("load", initApp);
+
