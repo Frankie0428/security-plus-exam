@@ -1,108 +1,111 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Security+ Practice Exam</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Security+ SY0-701 Practice Exam</title>
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
 
   <!-- LOADING -->
   <div id="loadingScreen" class="screen">
-    <h1>Security+ Practice Exam</h1>
-    <p>Loading questions…</p>
+    <div class="card center">
+      <h1>Security+ Practice Exam</h1>
+      <p>Loading exam…</p>
+    </div>
   </div>
 
-  <!-- START -->
+  <!-- START SCREEN -->
   <div id="startScreen" class="screen hidden">
-    <h1>Security+ Practice Exam</h1>
+    <div class="container">
+      <div class="card">
+        <h1>Security+ SY0-701 Practice Exam</h1>
+        <p class="muted">
+          This will generate a <strong>random 90-question exam</strong> from your question bank.
+          Timer is <strong>90 minutes</strong>.
+        </p>
 
-    <div id="savedProgress" class="card hidden">
-      <p><strong>Saved attempt found.</strong></p>
-      <p>Last saved: <span id="savedTime"></span></p>
-      <div class="row">
-        <button class="btn" onclick="continueExam()">Continue</button>
-        <button class="btn btn-secondary" onclick="startFreshExam()">Start Fresh</button>
+        <div id="savedProgress" class="notice hidden">
+          <strong>Saved attempt found:</strong> <span id="savedTime"></span>
+          <div class="btn-row">
+            <button class="btn" onclick="continueExam()">Continue Saved Attempt</button>
+            <button class="btn secondary" onclick="startFreshExam()">Start Fresh Exam</button>
+          </div>
+        </div>
+
+        <div class="btn-row" id="startButtons">
+          <button class="btn" onclick="startFreshExam()">Start Exam</button>
+        </div>
+
+        <p class="tiny muted">
+          Tip: Add more than 90 questions to your bank for better randomness (100–200+ is ideal).
+        </p>
       </div>
-    </div>
-
-    <div class="row">
-      <button class="btn" onclick="startFreshExam()">Start New Exam</button>
     </div>
   </div>
 
-  <!-- EXAM -->
-  <div id="examContainer" class="screen hidden">
+  <!-- EXAM CONTAINER -->
+  <div id="examContainer" class="container hidden">
 
-    <header class="topbar">
-      <div>Time: <span id="timer">90:00</span></div>
-      <div>Question: <span id="currentQ">1</span>/<span id="totalQ">0</span></div>
-      <div>Answered: <span id="answeredCount">0</span></div>
-      <div>Flagged: <span id="flaggedCount">0</span></div>
-    </header>
+    <!-- TOP BAR -->
+    <div class="topbar card">
+      <div class="topbar-left">
+        <div class="stat">
+          <span class="label">Time</span>
+          <span id="timer" class="value">90:00</span>
+        </div>
+        <div class="stat">
+          <span class="label">Question</span>
+          <span class="value"><span id="currentQ">1</span>/<span id="totalQ">90</span></span>
+        </div>
+      </div>
 
-    <div class="progress-wrap">
-      <div class="progress-label">Progress: <span id="progressPercent">0%</span></div>
-      <div class="progress-outer">
-        <div id="progressBar" class="progress-inner"></div>
+      <div class="topbar-right">
+        <div class="stat">
+          <span class="label">Answered</span>
+          <span id="answeredCount" class="value">0</span>
+        </div>
+        <div class="stat">
+          <span class="label">Flagged</span>
+          <span id="flaggedCount" class="value">0</span>
+        </div>
+        <button class="btn secondary" onclick="showReviewScreen()">Review</button>
       </div>
     </div>
 
-    <main id="questionContainer" class="card">
-      <div class="domain" id="questionDomain"></div>
-      <h2>Question <span id="qNum">1</span></h2>
-      <p id="questionText" class="question-text"></p>
+    <!-- PROGRESS -->
+    <div class="progress-wrap card">
+      <div class="progress-meta">
+        <span class="muted">Progress:</span>
+        <strong id="progressPercent">0%</strong>
+      </div>
+      <div class="progress">
+        <div id="progressBar" class="progress-bar" style="width:0%"></div>
+      </div>
+    </div>
+
+    <!-- QUESTION -->
+    <div id="questionContainer" class="card">
+      <div class="q-head">
+        <div class="q-left">
+          <h2>Question <span id="qNum">1</span></h2>
+          <div id="questionDomain" class="pill">Domain</div>
+        </div>
+        <div class="q-right">
+          <button id="flagBtn" class="btn secondary" onclick="toggleFlag()">🚩 Flag</button>
+        </div>
+      </div>
+
+      <p id="questionText" class="question-text">Question text…</p>
 
       <div id="optionsContainer" class="options"></div>
 
-      <div class="row space-between">
-        <button id="flagBtn" class="btn btn-secondary" onclick="toggleFlag()">🚩 Flag</button>
-        <button class="btn btn-secondary" onclick="showReviewScreen()">Review</button>
-      </div>
-
       <div id="explanation" class="explanation hidden"></div>
-    </main>
-
-    <footer class="nav">
-      <button id="prevBtn" class="btn btn-secondary" onclick="previousQuestion()">Prev</button>
-      <button id="nextBtn" class="btn" onclick="nextQuestion()">Next</button>
-      <button id="submitBtn" class="btn hidden" onclick="confirmSubmit()">Submit</button>
-    </footer>
-
-    <!-- REVIEW SCREEN -->
-    <div id="reviewScreen" class="screen hidden">
-      <div class="card">
-        <h2>Review Questions</h2>
-        <div id="reviewGrid" class="review-grid"></div>
-        <div class="row">
-          <button class="btn btn-secondary" onclick="closeReviewScreen()">Close</button>
-        </div>
-      </div>
     </div>
 
-    <!-- RESULTS -->
-    <div id="results" class="screen hidden">
-      <div class="card">
-        <h2>Results</h2>
-        <div id="passStatus" class="pass-status"></div>
-        <p>Score: <strong><span id="scorePercentage"></span></strong></p>
-        <p>Correct: <strong><span id="correctAnswers"></span></strong> / <strong><span id="totalQuestions"></span></strong></p>
-
-        <h3>Domain Breakdown</h3>
-        <div id="domainBreakdown" class="domain-breakdown"></div>
-
-        <div class="row">
-          <button class="btn btn-secondary" onclick="reviewAnswers()">Review Answers</button>
-          <button class="btn" onclick="restartExam()">Restart</button>
-        </div>
-      </div>
-    </div>
-
-  </div>
-
-  <!-- IMPORTANT: questions.js MUST load before app.js -->
-  <script src="questions.js"></script>
-  <script src="app.js"></script>
-</body>
-</html>
+    <!-- NAVIGATION -->
+    <div class="navigation card">
+      <button id="prevBtn" class="btn secondary" onclick="previousQuestion()">← Previous</button>
+      <button id="nextBtn" class="btn" onclick="nextQuestion()">Next →</button>
+      <but
