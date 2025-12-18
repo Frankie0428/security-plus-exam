@@ -2,7 +2,7 @@
 // Global question bank used by the exam engine
 // MUST be a single valid array
 
-window.questionBank = [
+const questionBank = [
 
   // =========================
   // 1.0 General Security Concepts
@@ -348,5 +348,8 @@ window.questionBank = [
     correct: 0,
     explanation: "Media sanitization policies define disposal procedures."
   }
-
 ];
+
+// expose to window for safety (works with either app style)
+window.questionBank = questionBank;
+console.log(`questionBank loaded: ${questionBank.length} questions`);
