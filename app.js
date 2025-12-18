@@ -172,3 +172,14 @@ function loadQuestion() {
 // ========================================
 window.addEventListener("load", initApp);
 
+  // Make functions available to inline onclick handlers in HTML
+window.startFreshExam = startExam;
+
+// If your HTML has Continue Saved Attempt, map it too (even if you aren’t using saves yet)
+window.continueExam = startExam;
+
+// Navigation buttons (if your HTML uses onclick="nextQuestion()" etc.)
+window.nextQuestion = nextQuestion;
+window.previousQuestion = previousQuestion;
+window.submitExam = submitExam;
+
