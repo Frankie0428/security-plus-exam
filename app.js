@@ -50,22 +50,24 @@ function buildExamForm() {
     return false;
   }
 
+  // Run with as many as you have (up to 90)
+  const count = Math.min(EXAM_QUESTION_COUNT, qb.length);
+
   if (qb.length < EXAM_QUESTION_COUNT) {
-    alert(`You have ${qb.length} questions. Add ${EXAM_QUESTION_COUNT - qb.length} more.`);
-    return false;
+    alert(`Practice mode: Using ${count} questions (you have ${qb.length}). Add ${EXAM_QUESTION_COUNT - qb.length} more to unlock full 90-question exam.`);
   }
 
-  // Pick 90 unique random questions WITHOUT shuffling the whole bank
+  // pick unique random questions
   const picked = new Set();
-  while (picked.size < EXAM_QUESTION_COUNT) {
+  while (picked.size < count) {
     picked.add(Math.floor(Math.random() * qb.length));
   }
 
   examQuestions = Array.from(picked).map(i => qb[i]);
-
   currentQuestion = 0;
   userAnswers = new Array(examQuestions.length).fill(null);
   flaggedQuestions = new Set();
+
   return true;
 }
 
@@ -513,3 +515,4 @@ window.addEventListener("beforeunload", (e) => {
 // BOOT
 // ========================================
 window.addEventListener("load", initApp);
+
